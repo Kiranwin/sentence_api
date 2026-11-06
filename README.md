@@ -121,6 +121,41 @@ nohup sentence-api > uvicorn.log 2>&1 &
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
 
+## 🐳 Docker 部署
+
+适合放到 NAS 或小主机上常驻。
+
+```bash
+mkdir -p data
+docker compose up -d --build
+docker compose logs -f
+```
+
+浏览器打开 `http://localhost:8000`。首次启动会在 `data/config/config.toml`
+生成默认配置（SQLite，监听 `0.0.0.0:8000`）。
+
+数据全在 `./data`，备份拷走该目录即可：
+
+| 路径 | 内容 |
+|------|------|
+| `config/config.toml` | 配置文件 |
+| `sentences.db` | SQLite 数据库 |
+
+几点提醒：
+
+- 目录权限不用管：容器启动时读 `./data` 的属主并以同一 uid/gid 运行；确实要
+  强制运行用户时在 compose 里设 `PUID` / `PGID`。
+- 镜像里的依赖按 `uv.lock` 安装，mcp/fastapi 这些包的版本与仓库锁定的一致。
+- 改端口要改两处：`data/config/config.toml` 的 `server.port`，以及
+  `docker-compose.yml` 的端口映射。
+- 想用 PostgreSQL：把配置里的 `database.type` 改成 `postgresql` 并填好连接项，
+  再取消 `docker-compose.yml` 底部 `db` 服务的注释。
+- 健康检查打 `/api/sentences?limit=1`。
+
+> ⚠️ 这个服务没有登录和鉴权，增删改与导入接口对任何能访问到的人都开放。
+> compose 默认只映射到 `127.0.0.1`；要给局域网用就改成 `8000:8000`，并且
+> 按下面「安全提醒」那一节加一层带认证的反向代理。
+
 ## 🚀 部署为 systemd 服务（推荐）
 
 ### 创建服务文件

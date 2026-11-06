@@ -1,0 +1,41 @@
+# 轻量句子 API · Docker Compose
+#
+# 首次使用：
+#   docker compose up -d --build
+#   docker compose logs -f
+#
+# 数据在 ./data：config/config.toml 与 sentences.db，备份拷走该目录即可。
+# 目录权限不用管：容器会读取 ./data 的属主并以同一 uid/gid 运行。
+#
+# 注意：这个服务没有登录和鉴权，管理员接口（增删改、导入）对任何能访问到的人
+# 都开放。下面默认只映射到 127.0.0.1；要给局域网用就改成 "8000:8000"，并且
+# 最好在前面加一层带认证的反向代理。
+
+services:
+  sentence-api:
+    build:
+      context: .
+    image: sentence-api:latest
+    container_name: sentence-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      TZ: Asia/Shanghai
+      # PUID: 1026
+      # PGID: 100
+    volumes:
+      - ./data:/data
+
+  # 想用 PostgreSQL 时：把 config/config.toml 的 database.type 改成 "postgresql"，
+  # 填好 database.postgresql 那几项，再取消下面的注释。
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: sentence-api-db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: sentences
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: change-me
+  #   volumes:
+  #     - ./pgdata:/var/lib/postgresql/data
