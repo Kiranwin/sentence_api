@@ -1,7 +1,7 @@
 # 轻量句子 API · Docker Compose
 #
 # 首次使用：
-#   docker compose up -d --build
+#   docker compose up -d
 #   docker compose logs -f
 #
 # 数据在 ./data：config/config.toml 与 sentences.db，备份拷走该目录即可。
@@ -13,9 +13,7 @@
 
 services:
   sentence-api:
-    build:
-      context: .
-    image: sentence-api:latest
+    image: ghcr.io/kiranwin/sentence-api:latest
     container_name: sentence-api
     restart: unless-stopped
     ports:

@@ -21,7 +21,7 @@
 | 数据库     | SQLite3                              |
 | 前端       | 原生 HTML / CSS / JavaScript         |
 | 构建工具   | [uv](https://docs.astral.sh/uv/)     |
-| 部署       | Uvicorn + systemd（Linux）           |
+| 部署       | Uvicorn + Docker / systemd（Linux） |
 
 ## 📦 安装
 
@@ -30,7 +30,49 @@
 - Python >= 3.12
 - 推荐使用 [uv](https://docs.astral.sh/uv/) 管理 Python 与依赖
 
-### 方式一：pip 安装（推荐）
+### 方式一：Docker（推荐）
+
+适合放到 Linux 主机或 NAS 上常驻。镜像由 GitHub Actions 构建并发布到 GHCR，
+当前只构建 `linux/amd64`；ARM 设备请改用下面的 pip 或源码方式。
+
+```bash
+mkdir -p data
+docker compose up -d
+docker compose logs -f
+```
+
+`docker-compose.yml` 已指向 `ghcr.io/kiranwin/sentence-api`，默认拉取 `latest`
+标签。也可以在 Compose 里改成精确版本，例如：
+
+```bash
+docker pull ghcr.io/kiranwin/sentence-api:v0.1.6
+```
+
+浏览器打开 `http://localhost:8000`。首次启动会在 `data/config/config.toml`
+生成默认配置（SQLite，监听 `0.0.0.0:8000`）。
+
+数据全在 `./data`，Compose 使用目录绑定（`./data:/data`），不是命名卷；
+备份拷走该目录即可：
+
+| 路径 | 内容 |
+|------|------|
+| `config/config.toml` | 配置文件 |
+| `sentences.db` | SQLite 数据库 |
+
+几点提醒：
+
+- 目录权限不用管：容器启动时读 `./data` 的属主并以同一 uid/gid 运行；确实要
+  强制运行用户时在 compose 里设 `PUID` / `PGID`。
+- 改端口要改两处：`data/config/config.toml` 的 `server.port`，以及
+  `docker-compose.yml` 的端口映射。
+- 镜像只支持 `linux/amd64`；NAS/树莓派等 ARM 设备请改用源码或 wheel 部署。
+- 健康检查打 `/api/sentences?limit=1`。
+
+> ⚠️ 这个服务没有登录和鉴权，增删改与导入接口对任何能访问到的人都开放。
+> compose 默认只映射到 `127.0.0.1`；要给局域网用就改成 `8000:8000`，并且
+> 按下面「安全提醒」那一节加一层带认证的反向代理。
+
+### 方式二：pip 安装
 
 ```bash
 # 从本地 wheel 安装
@@ -40,7 +82,7 @@ pip install dist/sentence_api-*.whl
 sentence-api
 ```
 
-### 方式二：源码运行
+### 方式三：源码运行
 
 ```bash
 git clone <repo-url>
@@ -49,7 +91,7 @@ uv sync
 uv run sentence-api
 ```
 
-### 方式三：使用虚拟环境
+### 方式四：使用虚拟环境
 
 ```bash
 python -m venv .venv
@@ -115,42 +157,6 @@ nohup sentence-api > uvicorn.log 2>&1 &
 
 - Swagger UI: `http://localhost:8000/docs`
 - ReDoc: `http://localhost:8000/redoc`
-
-## 🐳 Docker 部署
-
-适合放到 Linux 主机或 NAS 上常驻。镜像由 GitHub Actions 构建，当前发布
-`linux/amd64`；ARM 设备建议改用 wheel 或源码运行。
-
-```bash
-mkdir -p data
-docker compose up -d --build
-docker compose logs -f
-```
-
-浏览器打开 `http://localhost:8000`。首次启动会在 `data/config/config.toml`
-生成默认配置（SQLite，监听 `0.0.0.0:8000`）。
-
-数据全在 `./data`，Compose 使用目录绑定（`./data:/data`），不是命名卷；
-备份拷走该目录即可：
-
-| 路径 | 内容 |
-|------|------|
-| `config/config.toml` | 配置文件 |
-| `sentences.db` | SQLite 数据库 |
-
-几点提醒：
-
-- 目录权限不用管：容器启动时读 `./data` 的属主并以同一 uid/gid 运行；确实要
-  强制运行用户时在 compose 里设 `PUID` / `PGID`。
-- 镜像里的依赖按 `uv.lock` 安装，FastAPI 这些包的版本与仓库锁定的一致。
-- 改端口要改两处：`data/config/config.toml` 的 `server.port`，以及
-  `docker-compose.yml` 的端口映射。
-- 镜像只支持 `linux/amd64`；NAS/树莓派等 ARM 设备请改用源码或 wheel 部署。
-- 健康检查打 `/api/sentences?limit=1`。
-
-> ⚠️ 这个服务没有登录和鉴权，增删改与导入接口对任何能访问到的人都开放。
-> compose 默认只映射到 `127.0.0.1`；要给局域网用就改成 `8000:8000`，并且
-> 按下面「安全提醒」那一节加一层带认证的反向代理。
 
 ## 🚀 部署为 systemd 服务（推荐）
 
