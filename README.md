@@ -41,11 +41,11 @@ docker compose up -d
 docker compose logs -f
 ```
 
-`docker-compose.yml` 已指向 `ghcr.io/kiranwin/sentence-api`，默认拉取 `latest`
+`docker-compose.yml` 已指向 `ghcr.io/kiranwin/sentence_api`，默认拉取 `latest`
 标签。也可以在 Compose 里改成精确版本，例如：
 
 ```bash
-docker pull ghcr.io/kiranwin/sentence-api:v0.1.6
+docker pull ghcr.io/kiranwin/sentence_api:v0.1.7
 ```
 
 浏览器打开 `http://localhost:8000`。首次启动会在 `data/config/config.toml`

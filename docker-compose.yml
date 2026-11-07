@@ -13,7 +13,7 @@
 
 services:
   sentence-api:
-    image: ghcr.io/kiranwin/sentence-api:latest
+    image: ghcr.io/kiranwin/sentence_api:latest
     container_name: sentence-api
     restart: unless-stopped
     ports:
