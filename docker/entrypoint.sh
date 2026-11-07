@@ -56,19 +56,11 @@ host = "0.0.0.0"
 port = 8000
 
 [database]
-# sqlite 或 postgresql
+# 当前仅支持 SQLite
 type = "sqlite"
 
 [database.sqlite]
-# 相对路径会落在容器工作目录（/data）下，这里写绝对路径更明确
 path = "/data/sentences.db"
-
-[database.postgresql]
-host = "localhost"
-port = 5432
-database = "sentences"
-user = "postgres"
-password = ""
 TOML
     echo "[entrypoint] 已生成默认配置 ${CONFIG}"
 else

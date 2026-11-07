@@ -4,151 +4,80 @@ from typing import List, Dict, Optional
 
 from sentence_api.config import get_db_config
 
-_backend: str | None = None
 _config: dict | None = None
 
 
 def _init() -> None:
-    global _backend, _config
-    if _backend is None:
+    global _config
+    if _config is None:
         _config = get_db_config()
-        _backend = _config.get("type", "sqlite")
-        if _backend not in ("sqlite", "postgresql"):
-            raise ValueError(f"不支持的数据库类型: {_backend}")
+        backend = _config.get("type", "sqlite")
+        if backend != "sqlite":
+            raise ValueError(f"不支持的数据库类型: {backend}")
 
 
 def _sql(template: str) -> str:
-    """将 {ph} 替换为当前后端的占位符（SQLite: ?, PostgreSQL: %s）。"""
-    return template.replace("{ph}", "?" if _backend == "sqlite" else "%s")
+    """将 {ph} 替换为 SQLite 占位符。"""
+    return template.replace("{ph}", "?")
 
 
 @contextmanager
 def get_db():
     _init()
-    if _backend == "sqlite":
-        import sqlite3
-        path = _config.get("sqlite", {}).get("path", "sentences.db")
-        conn = sqlite3.connect(path)
-        conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-        finally:
-            conn.close()
-    else:
-        try:
-            import psycopg2
-        except ImportError:
-            raise ImportError(
-                "PostgreSQL 需要 psycopg2。请安装: pip install psycopg2-binary"
-            )
-        pg = _config.get("postgresql", {})
-        conn = psycopg2.connect(
-            host=pg.get("host", "localhost"),
-            port=pg.get("port", 5432),
-            dbname=pg.get("database", "sentences"),
-            user=pg.get("user", "postgres"),
-            password=pg.get("password", ""),
-        )
-        try:
-            yield conn
-        finally:
-            conn.close()
+    import sqlite3
+
+    path = _config.get("sqlite", {}).get("path", "sentences.db")
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def _execute(conn, sql_template: str, params=None):
-    """执行参数化 SQL，返回光标对象（跨后端兼容）。"""
+    """执行参数化 SQL，返回光标对象。"""
     sql = _sql(sql_template)
-    if _backend == "sqlite":
-        if params is not None:
-            return conn.execute(sql, params)
-        return conn.execute(sql)
-    else:
-        from psycopg2.extras import RealDictCursor
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        if params is not None:
-            cur.execute(sql, params)
-        else:
-            cur.execute(sql)
-        return cur
+    if params is not None:
+        return conn.execute(sql, params)
+    return conn.execute(sql)
 
 
 def _insert(conn, sql_template: str, params: tuple) -> int:
     """执行 INSERT 并返回新行的 id。"""
-    if _backend == "sqlite":
-        cur = conn.execute(_sql(sql_template), params)
-        return cur.lastrowid
-    else:
-        from psycopg2.extras import RealDictCursor
-        sql = _sql(sql_template).rstrip(";") + " RETURNING id"
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(sql, params)
-        return cur.fetchone()["id"]
+    cur = conn.execute(_sql(sql_template), params)
+    return cur.lastrowid
 
 
 def init_db():
     _init()
     with get_db() as conn:
-        if _backend == "sqlite":
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS sentences (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    hitokoto TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    commit_from TEXT,
-                    created_at INTEGER NOT NULL,
-                    length INTEGER NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS categories (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS sentence_categories (
-                    sentence_id INTEGER,
-                    category_id INTEGER,
-                    FOREIGN KEY (sentence_id) REFERENCES sentences(id) ON DELETE CASCADE,
-                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-                    PRIMARY KEY (sentence_id, category_id)
-                );
-                CREATE INDEX IF NOT EXISTS idx_sentence_category ON sentence_categories(category_id);
-            """)
-            conn.execute(
-                "INSERT OR IGNORE INTO categories (name) VALUES (?)",
-                ("默认分类",),
-            )
-        else:
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS sentences (
-                    id SERIAL PRIMARY KEY,
-                    hitokoto TEXT NOT NULL,
-                    author TEXT NOT NULL,
-                    commit_from TEXT,
-                    created_at INTEGER NOT NULL,
-                    length INTEGER NOT NULL
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS categories (
-                    id SERIAL PRIMARY KEY,
-                    name TEXT UNIQUE NOT NULL
-                )
-            """)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS sentence_categories (
-                    sentence_id INTEGER,
-                    category_id INTEGER,
-                    FOREIGN KEY (sentence_id) REFERENCES sentences(id) ON DELETE CASCADE,
-                    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
-                    PRIMARY KEY (sentence_id, category_id)
-                )
-            """)
-            cur.execute(
-                "CREATE INDEX IF NOT EXISTS idx_sentence_category ON sentence_categories(category_id)"
-            )
-            cur.execute(
-                "INSERT INTO categories (name) VALUES (%s) ON CONFLICT (name) DO NOTHING",
-                ("默认分类",),
-            )
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS sentences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                hitokoto TEXT NOT NULL,
+                author TEXT NOT NULL,
+                commit_from TEXT,
+                created_at INTEGER NOT NULL,
+                length INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sentence_categories (
+                sentence_id INTEGER,
+                category_id INTEGER,
+                FOREIGN KEY (sentence_id) REFERENCES sentences(id) ON DELETE CASCADE,
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+                PRIMARY KEY (sentence_id, category_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_sentence_category ON sentence_categories(category_id);
+        """)
+        conn.execute(
+            "INSERT OR IGNORE INTO categories (name) VALUES (?)",
+            ("默认分类",),
+        )
         conn.commit()
 
 

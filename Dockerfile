@@ -14,7 +14,7 @@ ENV PIP_NO_CACHE_DIR=1 \
     UV_PYTHON_DOWNLOADS=never
 
 # 钉住构建工具版本，避免 uv 自身漂移
-RUN pip install --no-cache-dir uv==0.11.28
+RUN pip install --no-cache-dir uv==0.13.7
 
 WORKDIR /app
 
@@ -52,7 +52,6 @@ RUN chmod 0755 /usr/local/bin/entrypoint.sh \
     && chown -R app:app /app /data
 
 # 不写 USER：以 root 启动，由 entrypoint 按 PUID/PGID 降权
-VOLUME ["/data"]
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

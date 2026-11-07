@@ -26,16 +26,3 @@ services:
       # PGID: 100
     volumes:
       - ./data:/data
-
-  # 想用 PostgreSQL 时：把 config/config.toml 的 database.type 改成 "postgresql"，
-  # 填好 database.postgresql 那几项，再取消下面的注释。
-  # db:
-  #   image: postgres:16-alpine
-  #   container_name: sentence-api-db
-  #   restart: unless-stopped
-  #   environment:
-  #     POSTGRES_DB: sentences
-  #     POSTGRES_USER: postgres
-  #     POSTGRES_PASSWORD: change-me
-  #   volumes:
-  #     - ./pgdata:/var/lib/postgresql/data

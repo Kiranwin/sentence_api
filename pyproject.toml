@@ -1,19 +1,15 @@
 [project]
 name = "sentence-api"
-version = "0.1.4"
+version = "0.1.5"
 description = "一言句子管理 API"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.136.3",
     "jinja2>=3.1.6",
-    "psycopg2-binary>=2.9.12",
     "python-multipart>=0.0.29",
     "uvicorn>=0.48.0",
 ]
-
-[project.optional-dependencies]
-postgresql = ["psycopg2-binary"]
 
 [project.scripts]
 sentence-api = "sentence_api.main:run"
