@@ -18,7 +18,7 @@
 | 角色       | 技术                                 |
 | ---------- | ------------------------------------ |
 | 后端框架   | FastAPI                              |
-| 数据库     | SQLite3 / PostgreSQL                 |
+| 数据库     | SQLite3                              |
 | 前端       | 原生 HTML / CSS / JavaScript         |
 | 构建工具   | [uv](https://docs.astral.sh/uv/)     |
 | 部署       | Uvicorn + systemd（Linux）           |
@@ -55,7 +55,7 @@ uv run sentence-api
 python -m venv .venv
 source .venv/bin/activate     # Linux/macOS
 .venv\Scripts\activate        # Windows
-pip install fastapi uvicorn python-multipart jinja2 psycopg2-binary
+pip install fastapi uvicorn python-multipart jinja2
 uvicorn sentence_api.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -77,17 +77,12 @@ host = "0.0.0.0"
 port = 8000
 
 [database]
-type = "sqlite"          # "sqlite" 或 "postgresql"
+# 当前仅支持 SQLite
+type = "sqlite"
 
 [database.sqlite]
 path = "sentences.db"    # SQLite 文件路径
 
-[database.postgresql]
-host = "localhost"
-port = 5432
-database = "sentences"
-user = "postgres"
-password = ""
 ```
 
 不创建配置文件则默认使用 SQLite + `sentences.db`。
@@ -123,7 +118,8 @@ nohup sentence-api > uvicorn.log 2>&1 &
 
 ## 🐳 Docker 部署
 
-适合放到 NAS 或小主机上常驻。
+适合放到 Linux 主机或 NAS 上常驻。镜像由 GitHub Actions 构建，当前发布
+`linux/amd64`；ARM 设备建议改用 wheel 或源码运行。
 
 ```bash
 mkdir -p data
@@ -134,7 +130,8 @@ docker compose logs -f
 浏览器打开 `http://localhost:8000`。首次启动会在 `data/config/config.toml`
 生成默认配置（SQLite，监听 `0.0.0.0:8000`）。
 
-数据全在 `./data`，备份拷走该目录即可：
+数据全在 `./data`，Compose 使用目录绑定（`./data:/data`），不是命名卷；
+备份拷走该目录即可：
 
 | 路径 | 内容 |
 |------|------|
@@ -145,11 +142,10 @@ docker compose logs -f
 
 - 目录权限不用管：容器启动时读 `./data` 的属主并以同一 uid/gid 运行；确实要
   强制运行用户时在 compose 里设 `PUID` / `PGID`。
-- 镜像里的依赖按 `uv.lock` 安装，mcp/fastapi 这些包的版本与仓库锁定的一致。
+- 镜像里的依赖按 `uv.lock` 安装，FastAPI 这些包的版本与仓库锁定的一致。
 - 改端口要改两处：`data/config/config.toml` 的 `server.port`，以及
   `docker-compose.yml` 的端口映射。
-- 想用 PostgreSQL：把配置里的 `database.type` 改成 `postgresql` 并填好连接项，
-  再取消 `docker-compose.yml` 底部 `db` 服务的注释。
+- 镜像只支持 `linux/amd64`；NAS/树莓派等 ARM 设备请改用源码或 wheel 部署。
 - 健康检查打 `/api/sentences?limit=1`。
 
 > ⚠️ 这个服务没有登录和鉴权，增删改与导入接口对任何能访问到的人都开放。

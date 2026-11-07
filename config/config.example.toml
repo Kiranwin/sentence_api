@@ -4,15 +4,8 @@ host = "0.0.0.0"
 port = 8000
 
 [database]
-# 数据库类型: "sqlite" 或 "postgresql"
+# 当前仅支持 SQLite
 type = "sqlite"
 
 [database.sqlite]
 path = "sentences.db"
-
-[database.postgresql]
-host = "localhost"
-port = 5432
-database = "sentences"
-user = "postgres"
-password = ""

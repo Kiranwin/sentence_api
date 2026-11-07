@@ -1,6 +1,6 @@
 name: Docker
 
-# 打 tag（v*）时构建并推送多架构镜像到 ghcr.io；
+# 打 tag（v*）时构建并推送 linux/amd64 镜像到 ghcr.io；
 # 推 main 与 PR 时只构建不推送，用来验证 Dockerfile 是否还健康。
 
 on:
@@ -13,6 +13,7 @@ on:
       - .dockerignore
       - docker/**
       - src/**
+      - README.md
       - pyproject.toml
       - uv.lock
       - .github/workflows/docker.yml
@@ -37,8 +38,6 @@ jobs:
         id: image
         run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      # arm64 靠 QEMU 模拟，构建时间大概翻倍；只要 amd64 可以去掉 QEMU 与构建参数里的 arm64
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to ghcr.io
@@ -65,7 +64,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
